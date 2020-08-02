@@ -3,20 +3,19 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Security.Principal;
 using fastipc.Formatter;
 using fastipc.Message;
 
 namespace fastipc.Bus {
 	public delegate void MessageReceivedHandler(Message.Message msg);
 
-	public enum Side
-	{
+	public enum Side {
 		In,
 		Out
 	}
 
-	public class NamedPipeBus : IBus
-	{
+	public class NamedPipeBus : IBus {
 		private readonly IPipeName _pipeName;
 		private readonly IMessageFormatter _formatter;
 		private readonly NamedPipeServerStream _server;
@@ -25,6 +24,12 @@ namespace fastipc.Bus {
 		private event MessageReceivedHandler MessageReceived;
 
 		public NamedPipeBus(IPipeName pipeName) {
+
+			PipeSecurity security = new PipeSecurity();
+			var sid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+			NTAccount account = (NTAccount)sid.Translate(typeof(NTAccount));
+			security.SetAccessRule(new PipeAccessRule(account, PipeAccessRights.ReadWrite, System.Security.AccessControl.AccessControlType.Allow));
+
 			_pipeName = pipeName;
 			_ignoreMe = new HashSet<Guid>();
 			_formatter = InitializeSerializer();
@@ -33,16 +38,17 @@ namespace fastipc.Bus {
 				PipeDirection.InOut,
 				1,
 				PipeTransmissionMode.Byte,
-				PipeOptions.Asynchronous);
+				PipeOptions.Asynchronous,
+				4028,
+				4028,
+				security);
 
 			Debug.WriteLine($"Listening on pipe {_pipeName.Read}...");
 			_server.BeginWaitForConnection(WaitForConnectionCallBack, null);
 		}
 
-		public void Publish<T>(T msg) where T : Message.Message
-		{
-			if (_ignoreMe.Contains(msg.MsgId))
-			{
+		public void Publish<T>(T msg) where T : Message.Message {
+			if (_ignoreMe.Contains(msg.MsgId)) {
 				_ignoreMe.Remove(msg.MsgId);
 				return;
 			}
@@ -62,10 +68,8 @@ namespace fastipc.Bus {
 			MessageReceived += handler.Handle;
 		}
 
-		private void WaitForConnectionCallBack(IAsyncResult result)
-		{
-			try
-			{
+		private void WaitForConnectionCallBack(IAsyncResult result) {
+			try {
 				_server.EndWaitForConnection(result);
 
 				var message = _formatter.Deserialize(_server);
@@ -75,15 +79,12 @@ namespace fastipc.Bus {
 				_server.Disconnect();
 
 				_server.BeginWaitForConnection(WaitForConnectionCallBack, null);
-			}
-			catch
-			{
+			} catch {
 				return;
 			}
 		}
 
-		private IMessageFormatter InitializeSerializer()
-		{
+		private IMessageFormatter InitializeSerializer() {
 			var formatter = new ProtobufNetFormatter();
 			var stream = new MemoryStream();
 			formatter.Serialize(stream, new StringContentMessage(content: "Content"));
@@ -94,14 +95,12 @@ namespace fastipc.Bus {
 			return formatter;
 		}
 
-		private void OnMessageReceived(Message.Message msg)
-		{
+		private void OnMessageReceived(Message.Message msg) {
 			var handler = MessageReceived;
 			handler?.Invoke(msg);
 		}
 
-		public void Dispose()
-		{
+		public void Dispose() {
 			_server?.Dispose();
 		}
 	}

@@ -3,26 +3,21 @@
 	<PropertyGroup>
 		<Authors>dvoaviarison</Authors>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<Platforms>x86</Platforms>
 	</PropertyGroup>
 
 	<Choose>
-		<When Condition="$(OS) == 'Unix' Or $(OS) == 'OSX'">
-			<PropertyGroup>
-				<TargetFramework>netstandard2.0</TargetFramework>
-			</PropertyGroup>
-		</When>
 		<When Condition=" $(OS) == 'WINDOWS_NT'">
 			<PropertyGroup>
-				<TargetFrameworks>net40;netstandard2.0</TargetFrameworks>
+				<TargetFrameworks>net472</TargetFrameworks>
 			</PropertyGroup>
 		</When>
 	</Choose>
 
 	<ItemGroup>
 		<PackageReference Include="protobuf-net" Version="2.4.0" />
-		<PackageReference Include="Microsoft.CSharp" Version="4.4.1" Condition="'$(TargetFramework)'!='net40'" />
-		<PackageReference Include="System.Diagnostics.PerformanceCounter" Version="4.5.0" Condition="'$(TargetFramework)'=='netstandard2.0'"/>
-		<Reference Include="Microsoft.CSharp" Condition="'$(TargetFramework)'=='net40'" />
+		<PackageReference Include="Microsoft.CSharp" Version="4.4.1" Condition="'$(TargetFramework)'!='net472'" />
+		<Reference Include="Microsoft.CSharp" Condition="'$(TargetFramework)'=='net472'" />
 	</ItemGroup>
 
 </Project>
